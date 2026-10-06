@@ -238,14 +238,17 @@ function createApp({ db, sessionSecret } = {}) {
   return app;
 }
 
+function getSessionSecret() {
+  if (process.env.SESSION_SECRET) return process.env.SESSION_SECRET;
+  if (process.env.VERCEL) throw new Error('Set SESSION_SECRET in the Vercel project environment variables.');
+  return 'local-development-only-session-secret-change-before-deployment';
+}
+
 if (require.main === module) {
-  if (!process.env.SESSION_SECRET) {
-    throw new Error('Set SESSION_SECRET before starting the application.');
-  }
   const db = createDatabase();
-  const app = createApp({ db, sessionSecret: process.env.SESSION_SECRET });
+  const app = createApp({ db, sessionSecret: getSessionSecret() });
   const port = Number(process.env.PORT) || 3000;
   app.listen(port, () => console.log(`To-do app listening on http://localhost:${port}`));
 }
 
-module.exports = { createApp, SQLiteSessionStore };
+module.exports = { createApp, SQLiteSessionStore, getSessionSecret };

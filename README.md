@@ -11,12 +11,12 @@ A small to-do app with username/password accounts and user-owned tasks stored in
 
 ```sh
 npm install
-SESSION_SECRET="replace-this-with-a-long-random-value" npm start
+npm start
 ```
 
 Open [http://localhost:3000](http://localhost:3000). The app creates `todo.sqlite` in the project directory on first start. Set `DATABASE_PATH` to store it elsewhere.
 
-Create an account with a username of 3–32 letters, numbers, or underscores and a password of at least 8 characters. Passwords are stored as bcrypt hashes. Set a stable, secret `SESSION_SECRET` in deployment so signed sessions remain valid across restarts; use HTTPS in production.
+Create an account with a username of 3–32 letters, numbers, or underscores and a password of at least 8 characters. Passwords are stored as bcrypt hashes. For local use, the app uses a development-only session secret automatically. Set a stable, private `SESSION_SECRET` in deployment; use HTTPS in production.
 
 ## Deploy to Vercel
 
@@ -30,7 +30,7 @@ Vercel runs the Express app as serverless functions, where a local SQLite file i
    - `SESSION_SECRET` — a long, randomly generated secret.
 4. Deploy or redeploy the project.
 
-The root `index.js` exports the Express app for Vercel. The database schema is initialized on first request. For local use, the app continues to create a file-based SQLite database and does not require Turso credentials.
+The root `index.js` exports the Express app, and `api/index.js` exposes it as a Vercel serverless function. The database schema is initialized on first request. For local use, the app uses the native SQLite database file and does not require Turso credentials.
 
 ## Run tests
 

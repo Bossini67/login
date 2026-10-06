@@ -12,8 +12,9 @@
     "node": ">=20"
   },
   "dependencies": {
-    "bcryptjs": "^2.4.3",
     "@libsql/client": "^0.15.15",
+    "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^11.8.1",
     "express": "^5.1.0",
     "express-session": "^1.18.1"
   },
