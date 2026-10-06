@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f6f1e8">
+  <meta name="description" content="A quiet place to keep track of what matters today.">
+  <title>Little List — Your to-do list</title>
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <main class="page-shell">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="Little List home">little list<span>.</span></a>
+      <p class="top-note">A little room to get things done</p>
+    </header>
+
+    <section class="intro" aria-labelledby="page-title">
+      <p class="eyebrow">One thing at a time</p>
+      <h1 id="page-title">Make space<br>for <em>today.</em></h1>
+      <p class="intro-copy">A calm corner for your tasks. Sign in to see what’s on your list.</p>
+    </section>
+
+    <section id="auth-panel" class="card auth-card" aria-labelledby="auth-title">
+      <p class="section-kicker">Welcome</p>
+      <h2 id="auth-title">Sign in to your list</h2>
+      <p id="auth-message" class="message" role="alert" aria-live="polite"></p>
+
+      <form id="auth-form">
+        <label for="username">Username</label>
+        <input id="username" name="username" autocomplete="username" minlength="3" maxlength="32" required>
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" minlength="8" required>
+        <button id="auth-submit" class="button" type="submit">Sign in</button>
+      </form>
+      <p class="switch-mode"><span id="mode-prompt">New here?</span>
+        <button id="mode-toggle" class="text-button" type="button">Create an account</button>
+      </p>
+    </section>
+
+    <section id="tasks-panel" class="card tasks-card" aria-labelledby="tasks-title" hidden>
+      <div class="tasks-heading">
+        <div>
+          <p class="section-kicker">Your own little list</p>
+          <h2 id="tasks-title">Today’s tasks</h2>
+        </div>
+        <button id="logout-button" class="text-button" type="button">Sign out</button>
+      </div>
+      <p id="welcome-user" class="welcome-user"></p>
+      <p id="task-message" class="message" role="alert" aria-live="polite"></p>
+      <form id="task-form" class="task-form">
+        <label class="visually-hidden" for="task-title">Add a task</label>
+        <input id="task-title" name="title" maxlength="200" placeholder="What needs doing?" required>
+        <button class="button add-button" type="submit">Add task</button>
+      </form>
+      <ul id="task-list" class="task-list" aria-label="Your tasks"></ul>
+      <p id="empty-state" class="empty-state">Your list is clear. Add a task to get started.</p>
+    </section>
+
+    <footer class="footer">
+      <span>Small steps still move you forward.</span>
+      <span>Little List · 2026</span>
+    </footer>
+  </main>
+</body>
+</html>
