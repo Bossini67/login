@@ -2,18 +2,21 @@ const path = require('node:path');
 const { createClient } = require('@libsql/client');
 
 function createDatabase(databasePath = process.env.DATABASE_PATH || path.join(__dirname, 'todo.sqlite')) {
-  if (process.env.VERCEL && !process.env.TURSO_DATABASE_URL) {
+  const tursoUrl = process.env.TURSO_DATABASE_URL || process.env.database;
+  const tursoAuthToken = process.env.TURSO_AUTH_TOKEN || process.env.token;
+
+  if (process.env.VERCEL && !tursoUrl) {
     throw new Error('TURSO_DATABASE_URL is required when deploying to Vercel.');
   }
 
-  if (process.env.TURSO_DATABASE_URL) {
-    if (!process.env.TURSO_AUTH_TOKEN) {
+  if (tursoUrl) {
+    if (!tursoAuthToken) {
       throw new Error('TURSO_AUTH_TOKEN is required when TURSO_DATABASE_URL is set.');
     }
 
     const client = createClient({
-      url: process.env.TURSO_DATABASE_URL,
-      authToken: process.env.TURSO_AUTH_TOKEN,
+      url: tursoUrl,
+      authToken: tursoAuthToken,
       intMode: 'number'
     });
 

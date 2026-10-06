@@ -32,6 +32,8 @@ Vercel runs the Express app as serverless functions, where a local SQLite file i
 
 The root `index.js` exports the Express app, and `api/index.js` exposes it as a Vercel serverless function. The database schema is initialized on first request. For local use, the app uses the native SQLite database file and does not require Turso credentials.
 
+For compatibility with existing Vercel projects, `database` and `token` are also accepted as aliases for the two Turso variables above.
+
 ## Run tests
 
 ```sh
