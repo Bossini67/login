@@ -2,7 +2,7 @@ const path = require('node:path');
 const bcrypt = require('bcryptjs');
 const express = require('express');
 const session = require('express-session');
-const { createDatabase } = require('./db');
+const { createDatabase, initializeDatabase } = require('./db');
 
 const USERNAME_PATTERN = /^[a-zA-Z0-9_]{3,32}$/;
 const PASSWORD_MIN_LENGTH = 8;
@@ -23,12 +23,12 @@ class SQLiteSessionStore extends session.Store {
     this.deleteExpiredStatement = db.prepare('DELETE FROM sessions WHERE expires <= ?');
   }
 
-  get(sid, callback) {
+  async get(sid, callback) {
     try {
-      const row = this.getStatement.get(sid);
+      const row = await this.getStatement.get(sid);
       if (!row) return callback(null, null);
       if (row.expires <= Date.now()) {
-        this.destroyStatement.run(sid);
+        await this.destroyStatement.run(sid);
         return callback(null, null);
       }
       return callback(null, JSON.parse(row.sess));
@@ -37,34 +37,34 @@ class SQLiteSessionStore extends session.Store {
     }
   }
 
-  set(sid, sess, callback = () => {}) {
+  async set(sid, sess, callback = () => {}) {
     try {
       const expires = sess.cookie?.expires
         ? new Date(sess.cookie.expires).getTime()
         : Date.now() + (sess.cookie?.maxAge || SESSION_MAX_AGE);
-      this.setStatement.run(sid, JSON.stringify(sess), expires);
-      this.deleteExpiredStatement.run(Date.now());
+      await this.setStatement.run(sid, JSON.stringify(sess), expires);
+      await this.deleteExpiredStatement.run(Date.now());
       callback(null);
     } catch (error) {
       callback(error);
     }
   }
 
-  touch(sid, sess, callback = () => {}) {
+  async touch(sid, sess, callback = () => {}) {
     try {
       const expires = sess.cookie?.expires
         ? new Date(sess.cookie.expires).getTime()
         : Date.now() + (sess.cookie?.maxAge || SESSION_MAX_AGE);
-      this.touchStatement.run(expires, sid);
+      await this.touchStatement.run(expires, sid);
       callback(null);
     } catch (error) {
       callback(error);
     }
   }
 
-  destroy(sid, callback = () => {}) {
+  async destroy(sid, callback = () => {}) {
     try {
-      this.destroyStatement.run(sid);
+      await this.destroyStatement.run(sid);
       callback(null);
     } catch (error) {
       callback(error);
@@ -98,7 +98,12 @@ function createApp({ db, sessionSecret } = {}) {
 
   const app = express();
   app.disable('x-powered-by');
+  if (process.env.VERCEL) app.set('trust proxy', 1);
   app.use(express.json({ limit: '16kb' }));
+  const databaseReady = initializeDatabase(db);
+  app.use((req, res, next) => {
+    databaseReady.then(() => next(), next);
+  });
   app.use(session({
     name: 'todo.sid',
     secret: sessionSecret,
@@ -108,16 +113,16 @@ function createApp({ db, sessionSecret } = {}) {
     cookie: {
       httpOnly: true,
       sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
+      secure: process.env.NODE_ENV === 'production' || Boolean(process.env.VERCEL),
       maxAge: SESSION_MAX_AGE
     }
   }));
 
-  app.get('/api/session', (req, res) => {
+  app.get('/api/session', async (req, res) => {
     if (!Number.isInteger(req.session.userId)) {
       return res.json({ user: null });
     }
-    const user = db.prepare('SELECT id, username FROM users WHERE id = ?').get(req.session.userId);
+    const user = await db.prepare('SELECT id, username FROM users WHERE id = ?').get(req.session.userId);
     if (!user) {
       return req.session.destroy((error) => {
         if (error) return res.status(500).json({ error: 'Unable to clear the invalid session.' });
@@ -141,7 +146,7 @@ function createApp({ db, sessionSecret } = {}) {
     const passwordHash = await bcrypt.hash(password, 10);
     let result;
     try {
-      result = db.prepare('INSERT INTO users (username, password_hash) VALUES (?, ?)').run(username, passwordHash);
+      result = await db.prepare('INSERT INTO users (username, password_hash) VALUES (?, ?)').run(username, passwordHash);
     } catch (error) {
       if (error.code === 'SQLITE_CONSTRAINT_UNIQUE') {
         return res.status(409).json({ error: 'That username is already taken.' });
@@ -156,7 +161,7 @@ function createApp({ db, sessionSecret } = {}) {
   app.post('/api/login', async (req, res) => {
     const username = typeof req.body?.username === 'string' ? req.body.username.trim() : '';
     const password = typeof req.body?.password === 'string' ? req.body.password : '';
-    const user = db.prepare('SELECT id, username, password_hash FROM users WHERE username = ?').get(username);
+    const user = await db.prepare('SELECT id, username, password_hash FROM users WHERE username = ?').get(username);
     if (!user || !(await bcrypt.compare(password, user.password_hash))) {
       return res.status(401).json({ error: 'Incorrect username or password.' });
     }
@@ -173,52 +178,52 @@ function createApp({ db, sessionSecret } = {}) {
     });
   });
 
-  app.get('/api/tasks', requireUser, (req, res) => {
-    const tasks = db.prepare(`
+  app.get('/api/tasks', requireUser, async (req, res) => {
+    const tasks = (await db.prepare(`
       SELECT id, title, completed, created_at AS createdAt
       FROM tasks
       WHERE user_id = ?
       ORDER BY created_at, id
-    `).all(req.session.userId).map((task) => ({
+    `).all(req.session.userId)).map((task) => ({
       ...task,
       completed: Boolean(task.completed)
     }));
     res.json({ tasks });
   });
 
-  app.post('/api/tasks', requireUser, (req, res) => {
+  app.post('/api/tasks', requireUser, async (req, res) => {
     const title = typeof req.body?.title === 'string' ? req.body.title.trim() : '';
     if (!title || title.length > TASK_TITLE_MAX_LENGTH) {
       return res.status(400).json({ error: 'Task title must be between 1 and 200 characters.' });
     }
-    const result = db.prepare('INSERT INTO tasks (user_id, title) VALUES (?, ?)').run(req.session.userId, title);
-    const task = db.prepare(`
+    const result = await db.prepare('INSERT INTO tasks (user_id, title) VALUES (?, ?)').run(req.session.userId, title);
+    const task = await db.prepare(`
       SELECT id, title, completed, created_at AS createdAt FROM tasks WHERE id = ?
     `).get(Number(result.lastInsertRowid));
     res.status(201).json({ task: { ...task, completed: Boolean(task.completed) } });
   });
 
-  app.patch('/api/tasks/:id', requireUser, (req, res) => {
+  app.patch('/api/tasks/:id', requireUser, async (req, res) => {
     const id = Number(req.params.id);
     if (!Number.isSafeInteger(id) || id < 1 || typeof req.body?.completed !== 'boolean') {
       return res.status(400).json({ error: 'A valid task ID and completed value are required.' });
     }
-    const result = db.prepare(`
+    const result = await db.prepare(`
       UPDATE tasks SET completed = ? WHERE id = ? AND user_id = ?
     `).run(Number(req.body.completed), id, req.session.userId);
     if (result.changes === 0) return res.status(404).json({ error: 'Task not found.' });
-    const task = db.prepare(`
+    const task = await db.prepare(`
       SELECT id, title, completed, created_at AS createdAt FROM tasks WHERE id = ?
     `).get(id);
     res.json({ task: { ...task, completed: Boolean(task.completed) } });
   });
 
-  app.delete('/api/tasks/:id', requireUser, (req, res) => {
+  app.delete('/api/tasks/:id', requireUser, async (req, res) => {
     const id = Number(req.params.id);
     if (!Number.isSafeInteger(id) || id < 1) {
       return res.status(400).json({ error: 'A valid task ID is required.' });
     }
-    const result = db.prepare('DELETE FROM tasks WHERE id = ? AND user_id = ?').run(id, req.session.userId);
+    const result = await db.prepare('DELETE FROM tasks WHERE id = ? AND user_id = ?').run(id, req.session.userId);
     if (result.changes === 0) return res.status(404).json({ error: 'Task not found.' });
     res.status(204).end();
   });

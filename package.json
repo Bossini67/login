@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "description": "A small user-scoped to-do app backed by SQLite",
-  "main": "server.js",
+  "main": "index.js",
   "scripts": {
     "start": "node server.js",
     "test": "node --test"
@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
-    "better-sqlite3": "^11.8.1",
+    "@libsql/client": "^0.15.15",
     "express": "^5.1.0",
     "express-session": "^1.18.1"
   },

@@ -3,3 +3,4 @@ todo.sqlite
 todo.sqlite-shm
 todo.sqlite-wal
 .env
+.vercel
